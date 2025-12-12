@@ -80,7 +80,7 @@
             <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
                 <div v-for="char in paginatedList" :key="char.tag" class="char-card bg-gray-800/40 rounded-xl overflow-hidden border border-gray-700/50 group relative flex flex-col h-full">
                     
-                    <div class="aspect-[2/3] w-full relative bg-gray-900/50 overflow-hidden cursor-pointer" @click="openImageSource(char)">
+                    <div class="aspect-[2/3] w-full relative bg-gray-900/50 overflow-hidden cursor-pointer" @click="searchCharacter(char)">
                         <img 
                             v-if="char.image_url"
                             :src="getThumbnailUrl(char.image_url)" 
@@ -107,7 +107,7 @@
                     </div>
 
                     <div class="p-3 flex flex-col justify-between grow bg-[#18181b]">
-                        <div @click="searchCharacter(char)" title="点击搜索该角色">
+                        <div>
                             <div class="font-bold text-gray-100 text-[13px] truncate leading-tight name-link transition-colors">
                                 {{ char.cn_name }}
                             </div>
