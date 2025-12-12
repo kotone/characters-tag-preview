@@ -1,7 +1,9 @@
 # Anime Character Tag Database (二次元角色 Tag 中文映射库)
+
 ![列表](/images/preview-img-01.png "列表")
 ![列表](/images/preview-img-02.png "列表")
 
+> [在线地址](https://kotone.github.io/WAI-il-characters-preview/) 图片加载较慢
 ## 简介 (Introduction)
 本项目维护了一个包含 **4400+** 个二次元角色的数据集。主要解决了难以将英文 Tag 与角色中文名对应的问题。
 
