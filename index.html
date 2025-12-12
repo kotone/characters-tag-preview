@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="zh" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>角色图鉴 v1.1</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@unocss/runtime"></script>
+    <style>
+        [v-cloak] { display: none; }
+        body { background-color: #0f0f0f; color: #e5e5e5; font-family: system-ui, -apple-system, sans-serif; margin: 0; overflow: hidden; }
+        
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: #1a1a1a; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #444; border-radius: 3px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        .char-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .char-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.5); border-color: #4b5563; }
+        
+        .name-link:hover { color: #60a5fa; text-decoration: underline; cursor: pointer; }
+        .category-pill.active { background-color: #2563eb; color: white; border-color: #2563eb; }
+
+        .toast-enter-active, .toast-leave-active { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .toast-enter-from, .toast-leave-to { opacity: 0; transform: translateY(-20px) scale(0.95); }
+    </style>
+</head>
+<body>
+
+<div id="app" v-cloak class="h-screen flex flex-col items-center relative" @dragover.prevent @drop.prevent="handleDrop">
+
+    <transition name="toast">
+        <div v-if="toast.show" class="fixed top-8 z-50 bg-blue-600/90 backdrop-blur text-white px-6 py-2.5 rounded-full shadow-xl flex items-center gap-2 font-medium border border-blue-400/20">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+            <span>{{ toast.msg }}</span>
+        </div>
+    </transition>
+    
+    <div class="w-full bg-[#0f0f0f]/95 backdrop-blur z-20 flex-none border-b border-gray-800 shadow-lg relative">
+        <div class="max-w-[1500px] mx-auto p-4 md:px-6 md:pt-6 md:pb-4 flex flex-col gap-4">
+            <div class="flex flex-col md:flex-row justify-between items-end gap-4">
+                <div>
+                    <div class="flex items-center gap-3">
+                        <h1 class="text-3xl font-bold text-white tracking-tight">Character Database</h1>
+                    </div>
+                    <p class="text-gray-500 mt-2 text-sm">
+                        已收录 <span class="text-gray-200 font-mono">{{ db.length }}</span> 位角色 
+                        <span v-if="loading" class="ml-2 text-blue-400 flex items-center inline-flex gap-1"><span class="animate-spin">⟳</span> 处理中...</span>
+                    </p>
+                </div>
+                <div class="w-full md:w-auto flex gap-2 items-center">
+                    <input v-model="searchQuery" @input="handleSearch" type="text" class="w-full md:w-80 bg-gray-900 border border-gray-700 text-gray-200 rounded-lg px-4 py-2.5 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none placeholder-gray-600 transition-all" placeholder="搜索 角色名 / Tag / 作品...">
+                    
+                    <button v-if="db.length > 0" @click="triggerFileInput" class="shrink-0 px-4 py-2.5 rounded-lg bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm font-medium transition-colors flex items-center gap-2" title="导入新数据覆盖当前内容">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        导入数据
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="db.length > 0" class="flex gap-2 overflow-x-auto pb-1 select-none custom-scroll">
+                <button @click="setCategory('all')" class="category-pill shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 transition-colors" :class="{ active: currentCategory === 'all' }">
+                    全部 ({{ db.length }})
+                </button>
+                <button v-for="cat in topCategories" :key="cat.name" @click="setCategory(cat.name)" class="category-pill shrink-0 px-4 py-1.5 rounded-full text-xs font-medium border border-gray-700 bg-gray-800/50 text-gray-400 hover:bg-gray-700 transition-colors" :class="{ active: currentCategory === cat.name }">
+                    {{ cat.name_cn || cat.name }} 
+                    <span v-if="cat.name_cn && cat.name !== cat.name_cn" class="opacity-50 text-[10px] ml-0.5">{{ cat.name }}</span>
+                    <span class="opacity-40 text-[10px] ml-1 bg-gray-700/50 px-1 rounded">{{ cat.count }}</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <input type="file" ref="fileInput" @change="handleFileSelect" class="hidden" accept=".json">
+
+    <div class="flex-grow w-full overflow-y-auto custom-scroll bg-[#0f0f0f] relative flex flex-col items-center" ref="scrollContainer">
+        
+        <div v-if="db.length > 0" class="w-full max-w-[1500px] p-4 md:p-6">
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-7 2xl:grid-cols-8 gap-4">
+                <div v-for="char in paginatedList" :key="char.tag" class="char-card bg-gray-800/40 rounded-xl overflow-hidden border border-gray-700/50 group relative flex flex-col h-full">
+                    
+                    <div class="aspect-[2/3] w-full relative bg-gray-900/50 overflow-hidden cursor-pointer" @click="openImageSource(char)">
+                        <img 
+                            v-if="char.image_url"
+                            :src="getThumbnailUrl(char.image_url)" 
+                            @error="handleImgError($event, char.image_url)"
+                            loading="lazy"
+                            decoding="async"
+                            class="w-full h-full object-cover transition-all duration-500 opacity-0 group-hover:scale-105"
+                            onload="this.classList.remove('opacity-0')"
+                        >
+                        <div v-else class="w-full h-full flex flex-col items-center justify-center text-gray-700 gap-2">
+                            <svg class="w-8 h-8 opacity-20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                            <span class="text-[10px] font-mono opacity-40">NO IMAGE</span>
+                        </div>
+                        
+                        <div v-if="char.source_en" class="absolute top-2 right-2 max-w-[90%]">
+                            <div class="text-[10px] bg-black/60 backdrop-blur-md text-white px-2 py-0.5 rounded border border-white/10 truncate">
+                                {{ char.source_cn || char.source_en }}
+                            </div>
+                        </div>
+                        
+                        <div class="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none flex items-center justify-center">
+                            <svg class="w-8 h-8 text-white/70 drop-shadow-md" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </div>
+                    </div>
+
+                    <div class="p-3 flex flex-col justify-between grow bg-[#18181b]">
+                        <div @click="searchCharacter(char)" title="点击搜索该角色">
+                            <div class="font-bold text-gray-100 text-[13px] truncate leading-tight name-link transition-colors">
+                                {{ char.cn_name }}
+                            </div>
+                            <div class="text-[11px] text-gray-500 truncate font-mono mt-0.5 name-link transition-colors">
+                                {{ char.en_name }}
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center mt-3 pt-2 border-t border-gray-700/30">
+                            <code class="text-[10px] text-gray-600 font-mono truncate max-w-[65%] bg-gray-800/50 px-1 rounded select-all">{{ char.tag }}</code>
+                            <button @click.stop="copyToClipboard(char.tag)" class="shrink-0 w-7 h-7 rounded-lg bg-gray-700/50 hover:bg-blue-600 hover:text-white text-gray-400 transition-all flex items-center justify-center active:scale-95" title="复制 Prompt">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div v-else class="flex flex-col items-center justify-center text-gray-500 h-full w-full">
+            <div @click="triggerFileInput" class="border-2 border-dashed border-gray-800 hover:border-blue-500/50 hover:bg-gray-800/30 transition-all rounded-2xl w-full max-w-2xl p-12 flex flex-col items-center cursor-pointer group">
+                <div class="text-6xl mb-4 grayscale opacity-20 group-hover:grayscale-0 group-hover:opacity-50 transition-all">📦</div>
+                <p class="text-lg text-gray-400 group-hover:text-blue-400">
+                    <span v-if="initLoading">正在尝试加载默认数据...</span>
+                    <span v-else>点击或拖入 JSON 文件</span>
+                </p>
+                <p v-if="!initLoading" class="text-xs text-gray-600 mt-2">未找到默认数据，请手动导入</p>
+            </div>
+        </div>
+    </div>
+
+    <div v-if="totalPages > 1 && db.length > 0" class="w-full bg-[#0f0f0f] border-t border-gray-800 z-30 flex-none py-3 shadow-[0_-5px_15px_rgba(0,0,0,0.3)]">
+        <div class="flex justify-center items-center gap-4">
+            <button @click="changePage(currentPage - 1)" :disabled="currentPage === 1" class="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:hover:bg-gray-800 transition">
+                ←
+            </button>
+            <span class="text-xs text-gray-400 font-mono">Page <span class="text-white font-bold">{{ currentPage }}</span> / {{ totalPages }}</span>
+            <button @click="changePage(currentPage + 1)" :disabled="currentPage === totalPages" class="w-9 h-9 flex items-center justify-center rounded-lg bg-gray-800 text-gray-400 hover:bg-gray-700 hover:text-white disabled:opacity-30 disabled:hover:bg-gray-800 transition">
+                →
+            </button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+    const { createApp, ref, computed, reactive, onMounted } = Vue
+
+    createApp({
+        setup() {
+            const db = ref([])
+            const searchQuery = ref('')
+            const loading = ref(false)
+            const initLoading = ref(true) // 专门用于控制初始加载的状态显示
+            const PAGE_SIZE = 80
+            const currentPage = ref(1)
+            const currentCategory = ref('all')
+            const toast = reactive({ show: false, msg: '' })
+            const fileInput = ref(null)
+            const scrollContainer = ref(null)
+            let toastTimer = null
+
+            // 核心逻辑：加载默认数据
+            const fetchDefaultData = async () => {
+                try {
+                    const res = await fetch('./output/character_data.json')
+                    if (!res.ok) throw new Error('File not found')
+                    const data = await res.json()
+                    processData(data, true)
+                } catch (e) {
+                    console.log('未找到默认数据或加载失败，等待用户手动导入')
+                } finally {
+                    initLoading.value = false
+                }
+            }
+
+            // 生命周期：挂载后立即请求
+            onMounted(() => {
+                fetchDefaultData()
+            })
+
+            // 核心逻辑：统一数据处理（去重、赋值）
+            const processData = (data, isAutoLoad = false) => {
+                try {
+                    const unique = data.filter((v,i,a)=>a.findIndex(t=>(t.tag===v.tag))===i)
+                    db.value = unique
+                    currentPage.value = 1
+                    // 如果是手动导入，清空搜索框
+                    if (!isAutoLoad) {
+                        searchQuery.value = ''
+                        currentCategory.value = 'all'
+                    }
+                    showToast(`成功加载 ${unique.length} 条数据`)
+                } catch(e) {
+                    console.error(e)
+                    showToast('数据格式错误')
+                }
+            }
+
+            // 原有逻辑：文件读取
+            const loadFile = (file) => {
+                if (!file) return
+                loading.value = true
+                const reader = new FileReader()
+                reader.onload = (e) => {
+                    try { 
+                        const data = JSON.parse(e.target.result)
+                        processData(data)
+                    } catch(e) { alert('JSON格式错误') }
+                    loading.value = false
+                    if(fileInput.value) fileInput.value.value = ''
+                }
+                reader.readAsText(file)
+            }
+
+            const topCategories = computed(() => {
+                const map = {}
+                db.value.forEach(item => {
+                    if (item.source_en) {
+                        if (!map[item.source_en]) map[item.source_en] = { name: item.source_en, name_cn: item.source_cn, count: 0 }
+                        map[item.source_en].count++
+                    }
+                })
+                return Object.values(map).sort((a, b) => b.count - a.count)
+            })
+
+            const filteredList = computed(() => {
+                let list = db.value
+                if (currentCategory.value !== 'all') {
+                    list = list.filter(item => item.source_en === currentCategory.value)
+                }
+                const q = searchQuery.value.toLowerCase().trim()
+                if (q) {
+                    list = list.filter(item => 
+                        (item.cn_name && item.cn_name.toLowerCase().includes(q)) ||
+                        (item.tag && item.tag.toLowerCase().includes(q)) ||
+                        (item.source_cn && item.source_cn.toLowerCase().includes(q))
+                    )
+                }
+                return list
+            })
+
+            const totalPages = computed(() => Math.ceil(filteredList.value.length / PAGE_SIZE) || 1)
+            const paginatedList = computed(() => {
+                const start = (currentPage.value - 1) * PAGE_SIZE
+                return filteredList.value.slice(start, start + PAGE_SIZE)
+            })
+
+            const changePage = (p) => {
+                if (p >= 1 && p <= totalPages.value) {
+                    currentPage.value = p
+                    if(scrollContainer.value) scrollContainer.value.scrollTo({ top: 0, behavior: 'smooth' })
+                }
+            }
+
+            const setCategory = (cat) => {
+                currentCategory.value = cat
+                currentPage.value = 1
+                if(scrollContainer.value) scrollContainer.value.scrollTo({ top: 0 })
+            }
+
+            const copyToClipboard = async (text) => {
+                try {
+                    await navigator.clipboard.writeText(text);
+                    showToast(`已复制: ${text}`)
+                } catch (e) { showToast('复制失败') }
+            }
+
+            const showToast = (msg) => {
+                toast.msg = msg; toast.show = true
+                clearTimeout(toastTimer)
+                toastTimer = setTimeout(() => toast.show = false, 2000)
+            }
+
+            const getThumbnailUrl = (url) => {
+                if (!url) return ''
+                if (url.includes('gelbooru.com')) {
+                    if (url.includes('/thumbnails/')) return url
+                    return url.replace('/images/', '/thumbnails/').replace(/\/[^\/]+$/, (match) => '/thumbnail_' + match.slice(1))
+                }
+                if (url.includes('safebooru.org')) {
+                    if (url.includes('/thumbnails/')) return url
+                    const parts = url.split('/')
+                    const name = parts.pop()
+                    const dir = parts.pop()
+                    return `https://safebooru.org/thumbnails/${dir}/thumbnail_${name}`
+                }
+                return url
+            }
+
+            const handleImgError = (e, originalUrl) => {
+                if (e.target.src !== originalUrl) e.target.src = originalUrl
+                else {
+                    e.target.style.display = 'none'
+                    e.target.parentElement.querySelector('div').style.display = 'flex'
+                }
+            }
+            
+            const openImageSource = (char) => {
+                if (char.image_url) window.open(char.image_url, '_blank')
+                else window.open(`https://safebooru.org/index.php?page=post&s=list&tags=${char.tag}`, '_blank')
+            }
+
+            const searchCharacter = (char) => {
+                const query = char.tag || char.cn_name
+                if (query) window.open(`https://safebooru.org/index.php?page=post&s=list&tags=${encodeURIComponent(query)}`, '_blank')
+                else showToast('无可用搜索信息')
+            }
+
+            return {
+                db, searchQuery, loading, initLoading, toast, currentCategory, fileInput, scrollContainer,
+                topCategories, paginatedList, currentPage, totalPages,
+                changePage, setCategory, copyToClipboard, getThumbnailUrl, 
+                handleImgError, openImageSource, searchCharacter, triggerFileInput: () => fileInput.value.click(),
+                handleDrop: (e) => loadFile(e.dataTransfer.files[0]),
+                handleFileSelect: (e) => loadFile(e.target.files[0]),
+                handleSearch: () => currentPage.value = 1
+            }
+        }
+    }).mount('#app')
+</script>
+</body>
+</html>
