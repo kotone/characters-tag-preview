@@ -1,6 +1,12 @@
 .DS_Store
 .AppleDouble
 .LSOverride
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 Thumbs.db
 ehthumbs.db
 node_modules/
