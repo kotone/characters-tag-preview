@@ -6,11 +6,12 @@ import time
 from typing import List, Dict
 from tqdm.asyncio import tqdm
 import os
+import sys
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # ================= 配置区 =================
-INPUT_FILE = os.path.join(BASE_DIR, '..', 'data', 'WAI-ii-characters.txt')
+INPUT_FILE = os.path.join(BASE_DIR, '..', 'data', 'WAI-il-characters.txt')
 OUTPUT_FILE = os.path.join(BASE_DIR, '..', 'output', 'character_data.json')
 
 # --- LLM 配置 ---
@@ -178,6 +179,20 @@ def save_data(data: List[Dict]):
         print(f"⚠️ 保存失败: {e}")
 
 async def main():
+    # --- LLM 配置完整性检测 ---
+    # 检查 URL 是否为空
+    if not LLM_API_URL or not LLM_API_URL.strip():
+        print("\n❌ 错误：LLM_API_URL 未配置！")
+        print("💡 提示：请在代码顶部的【配置区】填写完整的 API 地址。")
+        sys.exit(1)
+
+    # 检查 Key 是否为空或仍为默认值 "sk-"
+    if not LLM_API_KEY or LLM_API_KEY.strip() == "sk-" or not LLM_API_KEY.strip():
+        print("\n❌ 错误：LLM_API_KEY 未配置！")
+        print("💡 提示：请在代码顶部的【配置区】填写有效的 API Key (当前仍为默认值 'sk-')。")
+        sys.exit(1)
+    # -------------------------------
+
     if not os.path.exists(INPUT_FILE):
         print(f"错误: 未找到输入文件 {INPUT_FILE}")
         return
