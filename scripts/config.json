@@ -1,0 +1,44 @@
+{
+    "description": "角色数据处理脚本配置文件",
+    "version": "1.0.0",
+    "llm": {
+        "description": "LLM API 配置",
+        "batch_size": 10,
+        "concurrency": 5,
+        "retry_times": 3,
+        "retry_delay": 2,
+        "comment": {
+            "batch_size": "每次发送给 LLM 的角色数量，建议 5-15",
+            "concurrency": "LLM 并发请求数，建议 3-10，过高可能触发限流",
+            "retry_times": "失败后重试次数",
+            "retry_delay": "重试间隔（秒），采用指数退避策略"
+        }
+    },
+    "image": {
+        "description": "图片搜索配置",
+        "concurrency": 10,
+        "retry_times": 2,
+        "retry_delay": 1,
+        "comment": {
+            "concurrency": "图片搜索并发数，建议 10-20",
+            "retry_times": "失败后重试次数",
+            "retry_delay": "重试间隔（秒）"
+        }
+    },
+    "processing": {
+        "description": "数据处理配置",
+        "save_interval_batches": 5,
+        "comment": {
+            "save_interval_batches": "每处理多少个批次保存一次数据，减少 IO 开销"
+        }
+    },
+    "paths": {
+        "description": "文件路径配置（相对于 scripts 目录）",
+        "input_url": "https://raw.githubusercontent.com/DominikDoom/a1111-sd-webui-tagcomplete/refs/heads/main/tags/noob_characters-chants.json",
+        "output_file": "../output/noob_characters-chants-en-cn.json",
+        "debug_output_file": "../output/debug_output.json",
+        "data_dir": "../data",
+        "cached_source_file": "../data/noob_characters-chants.json",
+        "mapping_file": "./source_name_mapping.json"
+    }
+}

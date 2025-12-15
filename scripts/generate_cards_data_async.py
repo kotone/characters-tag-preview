@@ -15,61 +15,79 @@ load_dotenv()
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ================= 配置区 =================
-INPUT_URL = "https://raw.githubusercontent.com/DominikDoom/a1111-sd-webui-tagcomplete/refs/heads/main/tags/noob_characters-chants.json"
-OUTPUT_FILE = os.path.join(BASE_DIR, '..', 'output', 'noob_characters-chants-en-cn.json')
-MAPPING_FILE = os.path.join(BASE_DIR, 'source_name_mapping.json')
+# ================= 配置加载 =================
+def load_config():
+    """加载配置文件"""
+    config_file = os.path.join(BASE_DIR, 'config.json')
+    try:
+        with open(config_file, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+        return config
+    except FileNotFoundError:
+        print(f"⚠️ 警告: 配置文件不存在 {config_file}，使用默认配置")
+        return None
+    except Exception as e:
+        print(f"⚠️ 警告: 加载配置文件失败: {e}，使用默认配置")
+        return None
 
-# --- LLM 配置 ---
+# 加载配置
+CONFIG = load_config()
+
+# ================= 配置项 =================
+# 从配置文件读取，如果没有配置文件则使用默认值
+if CONFIG:
+    # LLM 配置
+    BATCH_SIZE = CONFIG['llm'].get('batch_size', 10)
+    LLM_CONCURRENCY = CONFIG['llm'].get('concurrency', 5)
+    LLM_RETRY_TIMES = CONFIG['llm'].get('retry_times', 3)
+    LLM_RETRY_DELAY = CONFIG['llm'].get('retry_delay', 2)
+    
+    # 图片配置
+    IMG_CONCURRENCY = CONFIG['image'].get('concurrency', 10)
+    IMG_RETRY_TIMES = CONFIG['image'].get('retry_times', 2)
+    IMG_RETRY_DELAY = CONFIG['image'].get('retry_delay', 1)
+    
+    # 处理配置
+    SAVE_INTERVAL_BATCHES = CONFIG['processing'].get('save_interval_batches', 5)
+    
+    # 路径配置
+    INPUT_URL = CONFIG['paths'].get('input_url')
+    OUTPUT_FILE = os.path.join(BASE_DIR, CONFIG['paths'].get('output_file'))
+    DEBUG_OUTPUT_FILE = os.path.join(BASE_DIR, CONFIG['paths'].get('debug_output_file'))
+    DATA_DIR = os.path.join(BASE_DIR, CONFIG['paths'].get('data_dir'))
+    CACHED_SOURCE_FILE = os.path.join(BASE_DIR, CONFIG['paths'].get('cached_source_file'))
+    MAPPING_FILE = os.path.join(BASE_DIR, CONFIG['paths'].get('mapping_file'))
+else:
+    # 默认配置
+    BATCH_SIZE = 10
+    LLM_CONCURRENCY = 5
+    LLM_RETRY_TIMES = 3
+    LLM_RETRY_DELAY = 2
+    IMG_CONCURRENCY = 10
+    IMG_RETRY_TIMES = 2
+    IMG_RETRY_DELAY = 1
+    SAVE_INTERVAL_BATCHES = 5
+    
+    INPUT_URL = "https://raw.githubusercontent.com/DominikDoom/a1111-sd-webui-tagcomplete/refs/heads/main/tags/noob_characters-chants.json"
+    OUTPUT_FILE = os.path.join(BASE_DIR, '..', 'output', 'noob_characters-chants-en-cn.json')
+    DEBUG_OUTPUT_FILE = os.path.join(BASE_DIR, '..', 'output', 'debug_output.json')
+    DATA_DIR = os.path.join(BASE_DIR, '..', 'data')
+    CACHED_SOURCE_FILE = os.path.join(DATA_DIR, 'noob_characters-chants.json')
+    MAPPING_FILE = os.path.join(BASE_DIR, 'source_name_mapping.json')
+
+# --- LLM API 配置（从环境变量读取） ---
 LLM_API_URL = os.getenv("LLM_API_URL") 
 LLM_API_KEY = os.getenv("LLM_API_KEY") 
 LLM_MODEL = os.getenv("LLM_MODEL")
 
-
-# 批处理大小 (保持不变，DeepSeek 一次处理太多容易幻觉)
-BATCH_SIZE = 10
-
-# --- 并发控制 ---
-# LLM 并发数：同时发送给 DeepSeek 的请求数
-# 建议 3-5，太高可能会触发 Rate Limit 或超时
-LLM_CONCURRENCY = 5
-
-# 搜图并发数：全局同时请求 Safebooru 的数量
-# Safebooru 比较宽松，但在高并发下建议设为 10-20
-IMG_CONCURRENCY = 10 
-
-# 存盘频率：每处理完多少个批次存一次盘 (减少 IO 开销)
-SAVE_INTERVAL_BATCHES = 5
-
-# --- 重试配置 ---
-LLM_RETRY_TIMES = 3  # LLM 重试次数
-LLM_RETRY_DELAY = 2  # LLM 重试延迟（秒）
-IMG_RETRY_TIMES = 2  # 图片搜索重试次数
-IMG_RETRY_DELAY = 1  # 图片搜索重试延迟（秒）
-
-# --- Danbooru API 配置 ---
-DANBOORU_API_BASE = "https://safebooru.donmai.us"
-DANBOORU_RATE_LIMIT = 0.5  # 2 请求/秒 (匿名用户)
-DANBOORU_RETRY_TIMES = 2  # Danbooru API 重试次数
-DANBOORU_RETRY_DELAY = 1  # Danbooru API 重试延迟（秒）
-
-# --- 调试模式（默认值，可通过命令行参数覆盖） ---
-DEBUG_MODE = False
-DEBUG_LIMIT = 10
-DEBUG_RANDOM = True
-# ===========================================
-
 # 全局信号量（将在 main 中根据命令行参数初始化）
 sem_llm = None
 sem_img = None
-sem_danbooru = None  # Danbooru API 信号量
 
 # 全局映射表（将在 main 中加载）
 source_name_mapping = None
 
-# 全局 Danbooru 缓存
-copyright_cache = {}  # {tag: [copyright_tags]}
-last_danbooru_request = 0  # 上次请求时间戳
+
 
 # 全局统计对象
 class Stats:
@@ -173,78 +191,7 @@ def normalize_source_names(source_en: str, source_cn: str) -> tuple:
     return normalized_en, normalized_cn
 
 
-async def fetch_copyright_from_danbooru(session: aiohttp.ClientSession, tag: str) -> List[str]:
-    """
-    从 Danbooru API 获取角色的版权标签
-    
-    Args:
-        tag: 角色标签名
-    
-    Returns:
-        版权标签列表，如 ["fate/grand_order", "fate_(series)"] 或空列表
-    """
-    global last_danbooru_request
-    
-    # 检查缓存
-    if tag in copyright_cache:
-        return copyright_cache[tag]
-    
-    # 构建 API 请求 URL
-    # 使用 tag search API 查询角色标签的版权信息
-    api_url = f"{DANBOORU_API_BASE}/tags.json?search[name]={tag}"
-    
-    copyrights = []
-    
-    for attempt in range(DANBOORU_RETRY_TIMES):
-        try:
-            async with sem_danbooru:
-                # 速率限制：确保两次请求之间至少间隔 DANBOORU_RATE_LIMIT 秒
-                current_time = time.time()
-                time_since_last = current_time - last_danbooru_request
-                if time_since_last < DANBOORU_RATE_LIMIT:
-                    await asyncio.sleep(DANBOORU_RATE_LIMIT - time_since_last)
-                
-                last_danbooru_request = time.time()
-                
-                async with session.get(api_url) as response:
-                    if response.status == 200:
-                        data = await response.json()
-                        
-                        # 如果找到标签信息
-                        if data and isinstance(data, list) and len(data) > 0:
-                            tag_info = data[0]
-                            # 检查是否有关联的版权标签
-                            # 注意：这里需要进一步查询角色关联的帖子来获取版权信息
-                            # 因为 tag API 不直接返回版权信息，我们需要查询使用该标签的帖子
-                            
-                            # 查询使用该标签的帖子（限制1个即可）
-                            posts_url = f"{DANBOORU_API_BASE}/posts.json?tags={tag}&limit=1"
-                            async with session.get(posts_url) as posts_response:
-                                if posts_response.status == 200:
-                                    posts_data = await posts_response.json()
-                                    if posts_data and isinstance(posts_data, list) and len(posts_data) > 0:
-                                        post = posts_data[0]
-                                        # 从帖子的 tag_string_copyright 字段获取版权标签
-                                        copyright_string = post.get('tag_string_copyright', '')
-                                        if copyright_string:
-                                            copyrights = [c.strip() for c in copyright_string.split() if c.strip()]
-                        
-                        # 缓存结果
-                        copyright_cache[tag] = copyrights
-                        return copyrights
-                        
-        except Exception as e:
-            if attempt == DANBOORU_RETRY_TIMES - 1:
-                # 最后一次重试失败，返回空列表
-                pass
-        
-        # 如果不是最后一次尝试，等待后重试
-        if attempt < DANBOORU_RETRY_TIMES - 1:
-            await asyncio.sleep(DANBOORU_RETRY_DELAY)
-    
-    # 缓存空结果，避免重复请求
-    copyright_cache[tag] = []
-    return []
+
 
 
 async def call_llm_custom(session: aiohttp.ClientSession, prompt: str) -> str:
@@ -259,7 +206,12 @@ async def call_llm_custom(session: aiohttp.ClientSession, prompt: str) -> str:
             {"role": "system", "content": "You are a JSON generator helper."},
             {"role": "user", "content": prompt}
         ],
-        "temperature": 0.1,
+        "max_tokens": 65536,
+        "thinking": {
+            "type": "disabled"
+        },
+        "temperature": 0.6,
+        "top_p": 0.95,
         "response_format": {"type": "json_object"}
     }
 
@@ -303,8 +255,6 @@ async def search_image_safebooru(session: aiohttp.ClientSession, tag: str) -> st
                             img = data[0]
                             stats.img_success += 1
                             return f"https://safebooru.org/images/{img['directory']}/{img['image']}"
-                # 给服务器喘息
-                await asyncio.sleep(0.2)
         except Exception:
             pass
         
@@ -344,84 +294,48 @@ async def process_images_for_list(session: aiohttp.ClientSession, data_list: Lis
 async def translate_batch_task(session: aiohttp.ClientSession, batch_data: List[Dict]) -> List[Dict]:
     """
     LLM 翻译任务
-    
-    Args:
-        batch_data: 包含 {"tag": str, "color": int, "content": str, "copyrights": List[str]} 的列表
     """
-    # 构建带版权信息的标签列表
-    tags_with_copyright = [
-        {
-            "tag": item['tag'],
-            "copyrights": item.get('copyrights', [])
-        }
-        for item in batch_data
-    ]
     
-    # 检查是否有任何非空的版权信息
-    has_copyright_info = any(item['copyrights'] for item in tags_with_copyright)
-    
-    # 根据是否有版权信息，动态调整 prompt
-    if has_copyright_info:
-        copyright_instruction = """每个角色都附带了从 Danbooru 获取的版权标签（copyrights），请优先使用这些信息来确定作品名称。
-
-标签列表（含版权信息）:"""
-        
-        source_rules = """3. source_cn 和 source_en 填写规则（重要）：
-   - **优先使用提供的 copyrights 信息**来确定作品名称
-   - 如果 copyrights 包含作品标签（如 ["date_a_live"]），将其转换为规范的作品名称
-   - 作品名称转换规则：
-     * "date_a_live" → source_en: "Date A Live", source_cn: "约会大作战"
-     * "fate/grand_order" 或 "fate_(series)" → source_en: "Fate/Grand Order", source_cn: "命运/冠位指定"
-     * "blue_archive" → source_en: "Blue Archive", source_cn: "蔚蓝档案"
-     * "original" → source_en: "Original", source_cn: "" (原创角色/VTuber)
-   - 如果 copyrights 为空或包含 "original"，且你能从角色名推断出准确来源，可以使用推断结果
-   - 如果完全无法确定，source_en 填写 "Original"，source_cn 留空"""
-    else:
-        copyright_instruction = """标签列表:"""
-        
-        source_rules = """3. source_cn 和 source_en 填写规则（重要）：
-   - **根据角色标签名称推断作品来源**（没有提供版权信息）
-   - 如果角色名中包含作品提示（如括号中的系列名），使用该信息
-   - 作品名称转换规则示例：
-     * 包含 "_(fate)" → 通常是 Fate 系列作品
-     * 包含 "_(blue_archive)" → Blue Archive / 蔚蓝档案
-     * 包含 "_(kancolle)" → Kantai Collection / 舰队Collection
-   - 如果角色名中没有作品提示，根据你的 ACG 知识推断
-   - 如果完全无法确定或是原创角色/VTuber，source_en 填写 "Original"，source_cn 留空"""
+    # 提取要翻译的 tag 列表
+    tags_to_translate = [item['tag'] for item in batch_data]
+    tags_str = '\n'.join([f"{i+1}. {tag}" for i, tag in enumerate(tags_to_translate)])
     
     prompt = f"""
-你是一个精通ACG文化的专家。请将以下 Danbooru Character Tags 翻译成 JSON 格式。
+    你是一个精通ACG文化的专家。请将以下 {len(batch_data)} 个 Danbooru Character Tags 翻译成 JSON 格式。
 
-{copyright_instruction}
-{json.dumps(tags_with_copyright, ensure_ascii=False)}
+    **要翻译的角色标签**：
+{tags_str}
 
-翻译要求:
-1. 返回纯 JSON 数组，每个对象包含：
-   - "tag": 原标签（保持不变）
-   - "cn_name": 中文角色名
-   - "cn_name_status": 中文名状态标注
-   - "en_name": 英文角色名（去掉下划线，首字母大写）
-   - "source_cn": 作品中文名
-   - "source_en": 作品英文名
+    **翻译要求**:
+    1. 必须返回 {len(batch_data)} 个对象，不能多也不能少
+    2. 每个对象必须包含以下字段：
+       - "tag": 原标签（从上面列表中选择，保持不变）
+       - "cn_name": 中文角色名（如果无法确定，留空）
+       - "cn_name_status": 中文名状态（官方译名/推断译名/未知）
+       - "en_name": 英文角色名（去掉下划线，首字母大写）
+       - "source_cn": 作品中文名（如果无法确定，留空）
+       - "source_en": 作品英文名
+       - "source_name_status": 作品名状态（官方译名/推断译名/未知）
 
-2. cn_name 和 cn_name_status 填写规则（重要）：
-   - 如果是知名角色，填写官方中文译名，cn_name_status 填写 true
-   - 如果是日文角色但没有官方中文名，进行合理音译（如：リン → 凛，输出`リン（凛）`），cn_name_status 填写 "音译"
-   - 如果是英文角色名，可以音译或留空（如：Asia Argento 可以音译为"亚细亚·阿尔真托"），cn_name_status 填写 "音译"
-   - 如果完全不知道或无法推断，cn_name 留空，cn_name_status 填写 "未知"
+    3. **括号处理规则**：
+       如果 tag 中包含括号，例如 character_(xxx)，请按以下规则处理：
+       
+       - 如果是**服装/形态/版本**描述（如 1st_costume, 2nd_costume, summer, winter, casual, maid, racing, idol 等）：
+         * 在 cn_name 中添加对应的中文描述，格式：角色名（描述）
+         * 在 en_name 中也保留括号，格式：Character Name (Description)
+         例如：inuyama_tamaki_(1st_costume) → cn_name: "犬山玉姬（第一套服装）", en_name: "Inuyama Tamaki (1st Costume)"
+       
+       - 如果是**作品名称**（用于区分同名角色，如 touhou, fate, pokemon 等）：
+         * cn_name 和 en_name **不包含括号和作品名**，只写角色名
+         * 将括号内的作品名提取到 source_cn 和 source_en
+         例如：ringo_(touhou) → cn_name: "铃瑚", en_name: "Ringo", source_cn: "东方Project", source_en: "Touhou Project"
+         例如：sakura_(cardcaptor_sakura) → cn_name: "小樱", en_name: "Sakura", source_cn: "魔卡少女樱", source_en: "Cardcaptor Sakura"
 
-{source_rules}
 
-4. 严禁使用 Markdown 代码块包裹，直接返回 JSON 数组。
+    4. 严禁使用 Markdown 代码块包裹，直接返回 JSON 数组
 
-示例：
-[
-  {{"tag": "hatsune_miku", "cn_name": "初音未来", "cn_name_status": "", "en_name": "Hatsune Miku", "source_cn": "Vocaloid", "source_en": "Vocaloid"}},
-  {{"tag": "yamai_yuzuru", "cn_name": "八舞夕弦", "cn_name_status": "", "en_name": "Yamai Yuzuru", "source_cn": "约会大作战", "source_en": "Date A Live"}},
-  {{"tag": "rin_(vocaloid)", "cn_name": "リン（凛）", "cn_name_status": "音译", "en_name": "Rin", "source_cn": "Vocaloid", "source_en": "Vocaloid"}},
-  {{"tag": "unknown_character_xyz", "cn_name": "", "cn_name_status": "未知", "en_name": "Unknown Character Xyz", "source_cn": "", "source_en": "Original"}}
-]
-"""
+    请翻译以上 {len(batch_data)} 个标签，确保返回数量正确。
+    """
     
     content = await call_llm_custom(session, prompt)
     
@@ -436,6 +350,7 @@ async def translate_batch_task(session: aiohttp.ClientSession, batch_data: List[
             "en_name": item['tag'], 
             "source_cn": "", 
             "source_en": "",
+            "source_name_status": "",  # LLM错误时留空
             "color": item['color'],
             "content": item['content']
         } 
@@ -449,37 +364,65 @@ async def translate_batch_task(session: aiohttp.ClientSession, batch_data: List[
         return default_res
 
     try:
-        print(f"\n[DEBUG] LLM原始返回前100字符: {content[:100]}")
-        
         clean_content = content.replace("```json", "").replace("```", "").strip()
         result = json.loads(clean_content)
-        
-        print(f"[DEBUG] 解析后类型: {type(result)}")
         
         # 兼容 LLM 可能返回 {"items": [...]} 或直接 [...] 的情况
         items = None
         if isinstance(result, dict):
-            print(f"[DEBUG] 返回的是字典，键: {list(result.keys())}")
             for val in result.values():
                 if isinstance(val, list): 
                     items = val
-                    print(f"[DEBUG] 从字典中提取到列表，长度: {len(items)}")
                     break
         elif isinstance(result, list):
             items = result
-            print(f"[DEBUG] 返回的是列表，长度: {len(items)}")
         
         if not items:
             print("\n⚠️ 无法从 LLM 返回中提取列表数据")
-            print(f"[DEBUG] 返回内容: {json.dumps(result, ensure_ascii=False)[:200]}")
             # 统计失败的角色数量
             stats.llm_fail += len(batch_data)
             return default_res
         
-        print(f"✅ 解析成功，共 {len(items)} 项")
-        # 调试：输出解析后的第一个项目
-        if items:
-            print(f"✅ 解析成功，共 {len(items)} 项")
+        # 修复：验证并处理 LLM 返回数量问题
+        if len(items) != len(batch_data):
+            if len(items) > len(batch_data):
+                # 返回数量过多，截断
+                print(f"\n⚠️ 警告: LLM 返回 {len(items)} 项，超过批次大小 {len(batch_data)}，截断多余项")
+                items = items[:len(batch_data)]
+            else:
+                # 返回数量不足
+                missing_count = len(batch_data) - len(items)
+                print(f"\n⚠️ 警告: LLM 返回 {len(items)} 项，缺少 {missing_count} 项")
+                
+                # 如果缺失过多（超过50%），认为失败
+                if len(items) < len(batch_data) * 0.5:
+                    print(f"  → 返回数量太少，标记为失败")
+                    stats.llm_fail += len(batch_data)
+                    return default_res
+                else:
+                    # 只缺少一点，补充默认值
+                    print(f"  → 补充缺失的 {missing_count} 项")
+                    
+                    # 获取已返回的 tag
+                    returned_tags = {item.get('tag') for item in items}
+                    
+                    # 为缺失的条目添加默认值
+                    for item in batch_data:
+                        if item['tag'] not in returned_tags:
+                            items.append({
+                                "tag": item['tag'],
+                                "cn_name": "",
+                                "cn_name_status": "",
+                                "en_name": item['tag'],
+                                "source_cn": "",
+                                "source_en": "",
+                                "color": item['color'],
+                                "content": item['content']
+                            })
+                    
+                    # 部分成功，部分失败
+                    stats.llm_success += len(items) - missing_count
+                    stats.llm_fail += missing_count
         
         # 将 color 和 content 字段合并到 LLM 返回的结果中
         tag_to_data = {item['tag']: item for item in batch_data}
@@ -524,10 +467,18 @@ async def pipeline_batch(session: aiohttp.ClientSession, batch_data: List[Dict])
     
     return final_items
 
-def save_data(data: List[Dict]):
-    """辅助函数：保存数据到磁盘"""
+def save_data(data: List[Dict], output_file: str = None):
+    """辅助函数：保存数据到磁盘
+    
+    Args:
+        data: 要保存的数据
+        output_file: 输出文件路径，默认为 OUTPUT_FILE
+    """
+    if output_file is None:
+        output_file = OUTPUT_FILE
+    
     try:
-        with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
     except Exception as e:
         print(f"⚠️ 保存失败: {e}")
@@ -546,16 +497,52 @@ def check_llm_config():
         print("💡 提示：请设置系统环境变量 LLM_API_KEY。")
         sys.exit(1)
 
-async def fetch_tags_from_url(url: str) -> Dict[str, Dict]:
+def load_tags_from_file(filepath: str) -> Dict[str, Dict]:
     """
-    从指定 URL 获取角色标签数据，并从 Danbooru 获取版权信息
+    从本地文件加载角色标签数据
+    
+    Args:
+        filepath: 本地JSON文件路径
+    
+    Returns:
+        字典，key 为角色 name，value 为包含 color 和 content 的字典
+        如果加载失败返回空字典
+    """
+    try:
+        with open(filepath, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        
+        # 从 JSON 数组中提取 terms 为 "Character" 的数据
+        if isinstance(data, list):
+            tags_dict = {}
+            for item in data:
+                if item.get('name') and item.get('terms') == 'Character':
+                    tags_dict[item['name']] = {
+                        'color': item.get('color', 0),
+                        'content': item.get('content', '')
+                    }
+            print(f"✅ 从缓存加载 {len(tags_dict)} 个角色标签")
+            return tags_dict
+        else:
+            print(f"⚠️ 警告: 缓存文件格式不正确")
+            return {}
+    except FileNotFoundError:
+        return {}
+    except Exception as e:
+        print(f"⚠️ 警告: 加载缓存文件失败 - {e}")
+        return {}
+
+async def fetch_tags_from_url(url: str, cache_file: str = None) -> Dict[str, Dict]:
+    """
+    从指定 URL 获取角色标签数据，并可选地保存到缓存文件
     
     Args:
         url: JSON 数据的 URL 地址
+        cache_file: 可选的缓存文件路径，如果提供则保存原始数据到该文件
     
     Returns:
-        字典，key 为角色 name，value 为包含 color、content 和 copyrights 的字典
-        格式: {"character_name": {"color": 4, "content": "...", "copyrights": [...]}}
+        字典，key 为角色 name，value 为包含 color 和 content 的字典
+        格式: {"character_name": {"color": 4, "content": "..."}}
         如果获取失败返回空字典
     
     Note:
@@ -583,6 +570,17 @@ async def fetch_tags_from_url(url: str) -> Dict[str, Dict]:
                 # GitHub raw 文件返回 text/plain，需要忽略 Content-Type 检查
                 data = await response.json(content_type=None)
                 
+                # 如果提供了缓存文件路径，保存原始数据
+                if cache_file:
+                    try:
+                        # 确保目录存在
+                        os.makedirs(os.path.dirname(cache_file), exist_ok=True)
+                        with open(cache_file, 'w', encoding='utf-8') as f:
+                            json.dump(data, f, ensure_ascii=False, indent=2)
+                        print(f"💾 原始数据已缓存至: {cache_file}")
+                    except Exception as e:
+                        print(f"⚠️ 警告: 缓存文件保存失败 - {e}")
+                
                 # 从 JSON 数组中提取 terms 为 "Character" 的数据
                 if isinstance(data, list):
                     # 构建字典: {name: {color, content}}
@@ -591,8 +589,7 @@ async def fetch_tags_from_url(url: str) -> Dict[str, Dict]:
                         if item.get('name') and item.get('terms') == 'Character':
                             tags_dict[item['name']] = {
                                 'color': item.get('color', 0),
-                                'content': item.get('content', ''),
-                                'copyrights': []  # 初始化为空列表
+                                'content': item.get('content', '')
                             }
                     print(f"✅ 成功获取 {len(tags_dict)} 个角色标签")
                     return tags_dict
@@ -608,66 +605,38 @@ async def fetch_tags_from_url(url: str) -> Dict[str, Dict]:
         print(f"❌ 错误: 获取数据失败 - {e}")
         return {}
 
-def apply_debug_filter(tags_dict: Dict[str, Dict], debug_mode: bool, debug_limit: int, debug_random: bool) -> Dict[str, Dict]:
+def apply_debug_filter(tags_dict: Dict[str, Dict], limit: int, random_sample: bool) -> Dict[str, Dict]:
     """
     应用数量限制过滤
     
     Args:
         tags_dict: 完整的标签字典
-        debug_mode: 是否启用调试模式（启用随机抽取）
-        debug_limit: 数量限制（0表示不限制）
-        debug_random: 是否随机抽取
+        limit: 数量限制（0表示不限制）
+        random_sample: 是否随机抽取
     
     Returns:
         过滤后的标签字典
     """
     # 如果未设置限制，返回全部
-    if debug_limit == 0:
+    if limit == 0:
         return tags_dict
     
     original_count = len(tags_dict)
     all_tags = list(tags_dict.keys())
     
-    if debug_random:
+    if random_sample:
         # 随机抽取
-        selected_tags = random.sample(all_tags, min(debug_limit, len(all_tags)))
+        selected_tags = random.sample(all_tags, min(limit, len(all_tags)))
         print(f"🔍 限量模式: 随机抽取 {len(selected_tags)}/{original_count} 条数据")
     else:
         # 按顺序取前N条
-        selected_tags = all_tags[:debug_limit]
+        selected_tags = all_tags[:limit]
         print(f"🔍 限量模式: 取前 {len(selected_tags)}/{original_count} 条数据")
     
     # 返回过滤后的字典
     return {tag: tags_dict[tag] for tag in selected_tags}
 
-async def enrich_with_copyrights(session: aiohttp.ClientSession, data_list: List[Dict]) -> List[Dict]:
-    """
-    为待处理的数据列表批量获取版权信息
-    
-    Args:
-        session: aiohttp ClientSession
-        data_list: 包含 {"tag": str, ...} 的列表
-    
-    Returns:
-        添加了 "copyrights" 字段的数据列表
-    """
-    if not data_list:
-        return data_list
-    
-    print(f"🔍 正在从 Danbooru 获取 {len(data_list)} 个角色的版权信息...")
-    
-    from tqdm import tqdm
-    pbar = tqdm(total=len(data_list), desc="获取版权", unit="角色")
-    
-    for item in data_list:
-        tag = item['tag']
-        copyrights = await fetch_copyright_from_danbooru(session, tag)
-        item['copyrights'] = copyrights
-        pbar.update(1)
-    
-    pbar.close()
-    print(f"✅ 版权信息获取完成")
-    return data_list
+
 
 def parse_args():
     """解析命令行参数"""
@@ -676,10 +645,7 @@ def parse_args():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog='''
 示例用法:
-  # 只处理前10000个角色（快速模式，跳过版权获取）
-  python %(prog)s --limit 10000 --skip-copyright
-  
-  # 处理10000个角色（包含版权信息，较慢）
+  # 只处理前10000个角色
   python %(prog)s --limit 10000
   
   # 生产模式：处理所有数据
@@ -690,14 +656,14 @@ def parse_args():
         ''')
     
     # 数据处理选项
-    parser.add_argument('--debug', action='store_true', 
-                        help='启用调试模式（随机抽取数据）')
     parser.add_argument('--limit', type=int, default=0, 
                         help='限制处理的数据量（0表示不限制，默认: 0）。例如 --limit 10000 只处理10000个角色')
     parser.add_argument('--random', action='store_true', 
                         help='随机抽取数据（默认：按顺序）。需配合 --limit 使用')
-    parser.add_argument('--skip-copyright', action='store_true',
-                        help='跳过 Danbooru 版权信息获取（显著提升速度，但依赖 LLM 推断作品来源）')
+    parser.add_argument('--force-update', action='store_true',
+                        help='强制从 URL 重新拉取源数据（忽略本地缓存）')
+    parser.add_argument('--debug', action='store_true',
+                        help='Debug 模式：忽略历史数据，输出到 debug_output.json，不影响正式文件')
     
     # 并发控制
     parser.add_argument('--llm-concurrency', type=int, default=LLM_CONCURRENCY,
@@ -712,7 +678,7 @@ def parse_args():
     return parser.parse_args()
 
 async def main():
-    global sem_llm, sem_img, sem_danbooru, source_name_mapping
+    global sem_llm, sem_img, source_name_mapping
     
     # 解析命令行参数
     args = parse_args()
@@ -723,12 +689,27 @@ async def main():
     # 初始化信号量
     sem_llm = asyncio.Semaphore(args.llm_concurrency)
     sem_img = asyncio.Semaphore(args.img_concurrency)
-    sem_danbooru = asyncio.Semaphore(5)  # Danbooru API 并发限制为5
     
     check_llm_config()
 
-    # 1. 从 URL 读取输入数据
-    tags_dict = await fetch_tags_from_url(INPUT_URL)
+    # 1. 读取输入数据（优先使用缓存，除非强制更新）
+    tags_dict = {}
+    
+    if not args.force_update and os.path.exists(CACHED_SOURCE_FILE):
+        # 优先从缓存读取
+        print(f"📂 发现本地缓存文件: {CACHED_SOURCE_FILE}")
+        tags_dict = load_tags_from_file(CACHED_SOURCE_FILE)
+        
+        if not tags_dict:
+            print("⚠️ 缓存文件无效，尝试从 URL 获取数据")
+            tags_dict = await fetch_tags_from_url(INPUT_URL, CACHED_SOURCE_FILE)
+    else:
+        # 从 URL 获取数据并缓存
+        if args.force_update:
+            print("🔄 强制更新模式：从 URL 重新拉取数据")
+        else:
+            print("📥 本地缓存不存在，从 URL 获取数据")
+        tags_dict = await fetch_tags_from_url(INPUT_URL, CACHED_SOURCE_FILE)
     
     if not tags_dict:
         print("❌ 错误: 无法获取有效的标签数据")
@@ -736,8 +717,19 @@ async def main():
     
     print(f"🚀 输入总数: {len(tags_dict)}")
     
-    # 应用调试模式过滤
-    tags_dict = apply_debug_filter(tags_dict, args.debug, args.limit, args.random)
+    # 应用数量限制过滤
+    tags_dict = apply_debug_filter(tags_dict, args.limit, args.random)
+    
+    # Debug 模式提示
+    if args.debug:
+        print("\n" + "="*60)
+        print("🐛 DEBUG 模式已启用")
+        print("="*60)
+        print("⚠️  此模式将：")
+        print("  1. 忽略历史数据，重新处理所有指定的角色")
+        print("  2. 输出到 debug_output.json（不影响正式文件）")
+        print("  3. 每次运行清空上次的 debug 结果")
+        print("="*60 + "\n")
     
     print(f"⚡ 并发配置: LLM x {args.llm_concurrency} | Image x {args.img_concurrency}")
     print(f"🔄 重试配置: LLM {LLM_RETRY_TIMES}次 | Image {IMG_RETRY_TIMES}次")
@@ -747,7 +739,14 @@ async def main():
     incomplete_tags = set() # 不完整的 tag（需要重新处理）
     existing_tags = set()   # 所有已存在的 tag
     
-    if os.path.exists(OUTPUT_FILE):
+    # Debug 模式：忽略历史数据，处理所有指定的角色
+    if args.debug:
+        print("🐛 Debug 模式：忽略历史数据，重新处理所有角色")
+        # Debug 模式不读取历史数据
+        complete_data = []
+        incomplete_tags = set()
+        existing_tags = set()
+    elif os.path.exists(OUTPUT_FILE):
         try:
             with open(OUTPUT_FILE, 'r', encoding='utf-8') as f:
                 history_data = json.load(f)
@@ -788,17 +787,6 @@ async def main():
         return
 
     print(f"🔥 本次需处理: {len(data_to_process)} 个角色")
-    
-    # 为待处理的角色获取版权信息（如果未跳过）
-    if not args.skip_copyright:
-        timeout = aiohttp.ClientTimeout(total=90)
-        async with aiohttp.ClientSession(timeout=timeout) as copyright_session:
-            data_to_process = await enrich_with_copyrights(copyright_session, data_to_process)
-    else:
-        print("⚡ 已跳过 Danbooru 版权信息获取（使用 --skip-copyright）")
-        # 为每个角色添加空的 copyrights 字段
-        for item in data_to_process:
-            item['copyrights'] = []
 
     # 3. 创建任务队列
     # 使用同一个 ClientSession 可以复用 TCP 连接，显著提升 SSL 握手速度
@@ -833,19 +821,38 @@ async def main():
             # 更新进度条（按角色数量）
             pbar.update(len(batch_result))
             
+            # 计算并显示实时成功率
+            llm_total = stats.llm_success + stats.llm_fail
+            img_total = stats.img_success + stats.img_fail
+            postfix_dict = {}
+            if llm_total > 0:
+                postfix_dict['LLM'] = f"{stats.llm_success/llm_total*100:.0f}%"
+            if img_total > 0:
+                postfix_dict['图片'] = f"{stats.img_success/img_total*100:.0f}%"
+            if postfix_dict:
+                pbar.set_postfix(postfix_dict)
+            
             # 定期存盘，而不是每批次都存
             if finished_batches % SAVE_INTERVAL_BATCHES == 0:
-                save_data(current_data)
-                pbar.set_postfix({"已保存": len(current_data)})
+                # Debug 模式输出到独立文件
+                output_file = DEBUG_OUTPUT_FILE if args.debug else OUTPUT_FILE
+                save_data(current_data, output_file)
         
         pbar.close()
         
         # 最后再一次性保存，确保数据完整
-        save_data(current_data)
+        # Debug 模式输出到独立文件
+        output_file = DEBUG_OUTPUT_FILE if args.debug else OUTPUT_FILE
+        save_data(current_data, output_file)
     
     # 打印统计报告
     stats.print_summary()
-    print(f"\n✅ 全部完成！完整数据已保存至 {OUTPUT_FILE}")
+    
+    if args.debug:
+        print(f"\n🐛 Debug 模式：数据已保存至 {output_file}")
+        print("⚠️  正式文件未受影响")
+    else:
+        print(f"\n✅ 全部完成！完整数据已保存至 {output_file}")
 
 if __name__ == '__main__':
     if os.name == 'nt':
