@@ -1,0 +1,287 @@
+{
+    "description": "作品名称规范化映射表 - 用于统一 LLM 翻译的作品名称",
+    "version": "1.0.0",
+    "mappings": {
+        "english_normalization": {
+            "description": "英文作品名规范化：将各种变体统一为标准名称",
+            "rules": {
+                "Fate/Grand Order": [
+                    "Fate",
+                    "fate",
+                    "Fate Grand Order",
+                    "Fate Series",
+                    "Fate series",
+                    "Fate/Grand Order"
+                ],
+                "Fate/stay night": [
+                    "Fate/stay night"
+                ],
+                "Fate/Zero": [
+                    "Fate/Zero"
+                ],
+                "Fate/Extra": [
+                    "Fate/Extra"
+                ],
+                "Fate/Apocrypha": [
+                    "Fate/Apocrypha"
+                ],
+                "Blue Archive": [
+                    "Blue Archive",
+                    "blue archive"
+                ],
+                "Kantai Collection": [
+                    "Kantai Collection",
+                    "Kancolle",
+                    "kancolle"
+                ],
+                "Pokémon": [
+                    "Pokemon",
+                    "Pokémon",
+                    "pokemon"
+                ],
+                "Uma Musume Pretty Derby": [
+                    "Uma Musume",
+                    "Uma Musume Pretty Derby",
+                    "Umamusume",
+                    "umamusume"
+                ],
+                "Granblue Fantasy": [
+                    "Granblue Fantasy",
+                    "granblue fantasy"
+                ],
+                "The Idolmaster Cinderella Girls": [
+                    "The Idolmaster Cinderella Girls"
+                ],
+                "The Idolmaster Shiny Colors": [
+                    "THE iDOLM@STER: Shiny Colors",
+                    "The Idolmaster Shiny Colors",
+                    "The Idolmaster: Shiny Colors"
+                ],
+                "Girls' Frontline": [
+                    "Girls' Frontline"
+                ],
+                "Arknights": [
+                    "Arknights"
+                ],
+                "Azur Lane": [
+                    "Azur Lane"
+                ],
+                "Genshin Impact": [
+                    "Genshin Impact"
+                ],
+                "Honkai: Star Rail": [
+                    "Honkai: Star Rail"
+                ],
+                "Touhou Project": [
+                    "Touhou Project",
+                    "Touhou"
+                ],
+                "Vocaloid": [
+                    "Vocaloid",
+                    "VOCALOID"
+                ],
+                "Hololive": [
+                    "Hololive"
+                ],
+                "Nijisanji": [
+                    "Nijisanji"
+                ],
+                "Fire Emblem": [
+                    "Fire Emblem"
+                ],
+                "Super Mario": [
+                    "Super Mario"
+                ],
+                "The Legend of Zelda": [
+                    "The Legend of Zelda",
+                    "Legend of Zelda"
+                ],
+                "Goddess of Victory: Nikke": [
+                    "Goddess of Victory: Nikke",
+                    "Nikke",
+                    "Nikke: Goddess of Victory"
+                ],
+                "Princess Connect! Re:Dive": [
+                    "Princess Connect Re:Dive",
+                    "Princess Connect!",
+                    "Princess Connect! Re:Dive"
+                ],
+                "Re:Zero − Starting Life in Another World": [
+                    "Re:Zero",
+                    "Re:Zero - Starting Life in Another World",
+                    "Re:Zero − Starting Life in Another World"
+                ],
+                "A Certain Magical Index": [
+                    "A Certain Magical Index",
+                    "Toaru Majutsu no Index",
+                    "toaru majutsu no index"
+                ],
+                "Pretty Cure": [
+                    "Pretty Cure",
+                    "Precure"
+                ],
+                "Project Moon": [
+                    "Project Moon",
+                    "project moon",
+                    "Lobotomy Corporation"
+                ]
+            }
+        },
+        "chinese_normalization": {
+            "description": "中文作品名规范化：将各种变体统一为标准中文名",
+            "rules": {
+                "命运/冠位指定": [
+                    "Fate/Grand Order",
+                    "命运冠位指定",
+                    "命运/冠位指定",
+                    "命运-冠位指定"
+                ],
+                "命运之夜": [
+                    "命运之夜"
+                ],
+                "Fate系列": [
+                    "Fate系列",
+                    "命运系列",
+                    "Fate/系列"
+                ],
+                "蔚蓝档案": [
+                    "蔚蓝档案",
+                    "碧蓝档案"
+                ],
+                "舰队Collection": [
+                    "舰队Collection"
+                ],
+                "宝可梦": [
+                    "宝可梦",
+                    "精灵宝可梦",
+                    "神奇宝贝",
+                    "寶可夢",
+                    "宝可梦特别篇"
+                ],
+                "赛马娘 Pretty Derby": [
+                    "赛马娘",
+                    "赛马娘 Pretty Derby"
+                ],
+                "碧蓝幻想": [
+                    "碧蓝幻想",
+                    "宿星公主"
+                ],
+                "偶像大师 灰姑娘女孩": [
+                    "偶像大师 灰姑娘女孩",
+                    "偶像大师灰姑娘女孩"
+                ],
+                "偶像大师 闪耀色彩": [
+                    "偶像大师 闪耀色彩"
+                ],
+                "少女前线": [
+                    "少女前线",
+                    "少女前線"
+                ],
+                "明日方舟": [
+                    "明日方舟"
+                ],
+                "碧蓝航线": [
+                    "碧蓝航线"
+                ],
+                "原神": [
+                    "原神"
+                ],
+                "崩坏：星穹铁道": [
+                    "崩坏：星穹铁道"
+                ],
+                "东方Project": [
+                    "东方Project",
+                    "東方Project"
+                ],
+                "Vocaloid": [
+                    "Vocaloid",
+                    "初音未来",
+                    "初音未来系列"
+                ],
+                "Hololive": [
+                    "Hololive"
+                ],
+                "火焰纹章": [
+                    "火焰纹章",
+                    "火焰之纹章"
+                ],
+                "超级马里奥": [
+                    "超级马里奥",
+                    "超级马力欧",
+                    "超级马力欧系列"
+                ],
+                "胜利女神：妮姬": [
+                    "胜利女神：妮姬"
+                ],
+                "公主连结Re:Dive": [
+                    "公主连结Re:Dive"
+                ],
+                "Re:从零开始的异世界生活": [
+                    "Re:从零开始的异世界生活"
+                ],
+                "魔法禁书目录": [
+                    "魔法禁书目录"
+                ],
+                "光之美少女": [
+                    "光之美少女"
+                ],
+                "脑叶公司": [
+                    "脑叶公司"
+                ],
+                "超次元游戏 海王星": [
+                    "超次元游戏 海王星",
+                    "超次元游戏海王星",
+                    "超次元游戏：海王星"
+                ],
+                "月姬": [
+                    "月姬"
+                ],
+                "魔法老师": [
+                    "魔法老师"
+                ],
+                "出包王女": [
+                    "出包王女"
+                ]
+            }
+        },
+        "standard_pairs": {
+            "description": "标准的英文-中文配对（最终标准）",
+            "pairs": {
+                "Fate/Grand Order": "命运/冠位指定",
+                "Fate/stay night": "命运之夜",
+                "Fate/Zero": "Fate/Zero",
+                "Fate/Extra": "Fate/Extra",
+                "Fate/Apocrypha": "Fate/Apocrypha",
+                "Blue Archive": "蔚蓝档案",
+                "Kantai Collection": "舰队Collection",
+                "Pokémon": "宝可梦",
+                "Uma Musume Pretty Derby": "赛马娘 Pretty Derby",
+                "Granblue Fantasy": "碧蓝幻想",
+                "The Idolmaster Cinderella Girls": "偶像大师 灰姑娘女孩",
+                "The Idolmaster Shiny Colors": "偶像大师 闪耀色彩",
+                "Girls' Frontline": "少女前线",
+                "Arknights": "明日方舟",
+                "Azur Lane": "碧蓝航线",
+                "Genshin Impact": "原神",
+                "Honkai: Star Rail": "崩坏：星穹铁道",
+                "Touhou Project": "东方Project",
+                "Vocaloid": "Vocaloid",
+                "Hololive": "Hololive",
+                "Nijisanji": "Nijisanji",
+                "Fire Emblem": "火焰纹章",
+                "Super Mario": "超级马里奥",
+                "The Legend of Zelda": "塞尔达传说",
+                "Goddess of Victory: Nikke": "胜利女神：妮姬",
+                "Princess Connect! Re:Dive": "公主连结Re:Dive",
+                "Re:Zero − Starting Life in Another World": "Re:从零开始的异世界生活",
+                "A Certain Magical Index": "魔法禁书目录",
+                "Pretty Cure": "光之美少女",
+                "Project Moon": "脑叶公司",
+                "Hyperdimension Neptunia": "超次元游戏 海王星",
+                "Tsukihime": "月姬",
+                "Negima!": "魔法老师",
+                "To Love-Ru": "出包王女"
+            }
+        }
+    }
+}

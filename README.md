@@ -5,13 +5,13 @@
 
 > [在线地址](https://kotone.github.io/WAI-il-characters-preview/) 图片加载较慢
 ## 简介 (Introduction)
-本项目维护了一个包含 **4400+** 个二次元角色的数据集。主要解决了难以将英文 Tag 与角色中文名对应的问题。
+本项目根据 Danbooru Character Tag 数据，提供中英文映射、作品信息及预览图。主要解决了在使用 AI 绘图工具时,难以将英文 Tag 与角色中文名及其所属作品对应的问题,让创作者能够快速查找和使用正确的角色标签。
 
-如果需要增加新角色，可以`data/WAI-il-characters.txt` 文件添加后，运行 `script/generate_cards_data_async.py` 脚本；
 
-### 当前版本数据准确性
-- 中文名：由 `deepseek` 辅助生成，准确率较高但可能存在少量幻觉或别名差异；  
-- 图片：图片通过爬虫从 `Safebooru` 搜索结果中获取列表第一张图为预览图。
+### 数据来源与准确性
+- **数据源**：角色标签数据自动从 [a1111-sd-webui-tagcomplete](https://github.com/DominikDoom/a1111-sd-webui-tagcomplete) 项目获取，支持缓存和增量更新；
+- **中文名**：由 LLM（DeepSeek）辅助生成，准确率较高但可能存在少量幻觉或别名差异；  
+- **图片**：通过爬虫从 `Safebooru` 搜索结果中获取第一张图作为预览图。
 
 
 ## ⚠️ 免责声明 (Disclaimer)
