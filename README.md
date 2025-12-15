@@ -3,7 +3,7 @@
 ![列表](/images/preview-img-01.png "列表")
 ![列表](/images/preview-img-02.png "列表")
 
-> [在线地址](https://kotone.github.io/WAI-il-characters-preview/) 图片加载较慢
+> [在线地址](https://kotone.github.io/characters-tag-preview/) 图片加载较慢
 ## 简介 (Introduction)
 本项目根据 Danbooru Character Tag 数据，提供中英文映射、作品信息及预览图。主要解决了在使用 AI 绘图工具时,难以将英文 Tag 与角色中文名及其所属作品对应的问题,让创作者能够快速查找和使用正确的角色标签。
 
