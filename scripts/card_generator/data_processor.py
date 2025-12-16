@@ -184,36 +184,57 @@ async def pipeline_batch(
     """
     # 导入工具函数和数据加载器
     from .utils import is_genshin_tag
-    from .genshin_impact import get_data_loader
+    from .genshin_impact import get_data_loader as get_genshin_loader
+    from .honkai_starrail import get_data_loader as get_starrail_loader, is_honkai_starrail_tag
     
-    # 获取原神数据加载器
-    genshin_loader = get_data_loader()
+    # 获取数据加载器
+    genshin_loader = get_genshin_loader()
+    starrail_loader = get_starrail_loader()
     
-    # 分离原神标签和普通标签
-    genshin_items = []
+    # 分离原神/星铁标签和普通标签
+    special_items = []  # 原神+星铁
     normal_items = []
     
     for item in batch_data:
         tag = item.get('tag', '')
+        
+        # 检查原神标签
         if is_genshin_tag(tag):
-            # 原神标签：直接使用本地数据
             char_data = genshin_loader.get_character_data(tag)
             if char_data:
-                # 更新item数据
                 item['tag_cn'] = char_data['name_cn']
                 item['tag_en'] = char_data['name_en']
                 item['image_url'] = char_data['icon_url']
                 item['source_game'] = 'genshin_impact'
                 item['character_id'] = char_data['entry_page_id']
                 
-                genshin_items.append(item)
+                special_items.append(item)
                 stats.llm_success_count += 1
                 stats.img_success_count += 1
                 print(f"✨ 原神角色: {tag} -> {char_data['name_cn']} ({char_data['name_en']})")
             else:
-                # 降级到普通处理
                 normal_items.append(item)
                 print(f"⚠️ 原神标签未找到映射: {tag}")
+        
+        # 检查星铁标签
+        elif is_honkai_starrail_tag(tag):
+            char_data = starrail_loader.get_character_data(tag)
+            if char_data:
+                item['tag_cn'] = char_data['name_cn']
+                item['tag_en'] = char_data['name_en']
+                item['image_url'] = char_data['icon_url']
+                item['source_game'] = 'honkai_starrail'
+                item['character_id'] = char_data['entry_page_id']
+                
+                special_items.append(item)
+                stats.llm_success_count += 1
+                stats.img_success_count += 1
+                print(f"✨ 星铁角色: {tag} -> {char_data['name_cn']} ({char_data['name_en']})")
+            else:
+                normal_items.append(item)
+                print(f"⚠️ 星铁标签未找到映射: {tag}")
+        
+        # 普通标签
         else:
             normal_items.append(item)
     
@@ -224,7 +245,7 @@ async def pipeline_batch(
             session, normal_items, config, sem_llm, stats, source_name_mapping
         )
     
-    # 2. 搜图阶段 - 使用图片源管理器（只处理普通标签，原神标签已有图）
+    # 2. 搜图阶段 - 使用图片源管理器（只处理普通标签，原神/星铁标签已有图）
     async def _process_image(item):
         # 如果已经有图，直接返回
         if item.get('image_url') and str(item['image_url']).startswith('http'):
@@ -243,7 +264,7 @@ async def pipeline_batch(
     tasks = [_process_image(item) for item in translated_items]
     final_normal_items = await asyncio.gather(*tasks) if tasks else []
     
-    # 3. 合并原神标签和普通标签结果
-    final_items = genshin_items + final_normal_items
+    # 3. 合并特殊标签（原神+星铁）和普通标签结果
+    final_items = special_items + final_normal_items
     
     return final_items

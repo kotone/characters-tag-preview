@@ -1,31 +1,30 @@
 """
-原神 Wiki API - 获取角色列表（中英文合并）
-从 HoYoLAB Wiki API 获取原神所有角色的中英文信息
+崩坏：星穹铁道 Wiki API - 获取角色列表（中英文合并）
+从 HoYoLAB Wiki API 获取星铁所有角色的中英文信息
 """
 
 import requests
 import json
 import time
+import os
 from typing import List, Dict, Optional
 
 
-class GenshinWikiAPI:
-    """原神 Wiki API 客户端"""
+class HonkaiStarRailWikiAPI:
+    """崩坏：星穹铁道 Wiki API 客户端"""
     
-    BASE_URL = "https://sg-wiki-api.hoyolab.com/hoyowiki/genshin/wapi"
+    BASE_URL = "https://sg-wiki-api.hoyolab.com/hoyowiki/hsr/wapi"
     
     # 精简的请求头配置
-    # 移除了可能导致请求失败的动态header和设备标识
-    # 只保留API所需的最基本header
     DEFAULT_HEADERS = {
         "accept": "application/json, text/plain, */*",
         "accept-language": "zh-CN,zh;q=0.9,en;q=0.8",
         "content-type": "application/json;charset=UTF-8",
         "referer": "https://wiki.hoyolab.com/",
-        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "user-agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
         # HoYoLAB API 必需的header
         "x-rpc-language": "zh-cn",
-        "x-rpc-wiki_app": "genshin"
+        "x-rpc-wiki_app": "hsr"
     }
     
     def __init__(self, timeout: int = 10):
@@ -54,7 +53,7 @@ class GenshinWikiAPI:
         while True:
             payload = {
                 "filters": [],
-                "menu_id": 2,  # 整数类型
+                "menu_id": 104,  # 星铁角色菜单ID
                 "page_num": page_num,
                 "page_size": page_size,
                 "use_es": True
@@ -135,9 +134,9 @@ class GenshinWikiAPI:
                 'entry_page_id': entry_id,
                 'name_cn': cn_char.get('name', ''),
                 'name_en': name_en,
-                'tag': f"{tag_name}_(genshin_impact)" if tag_name else '',
-                'source': 'genshin_impact',
-                'source_cn': '原神',
+                'tag': f"{tag_name}_(honkai_impact)" if tag_name else '',
+                'source': 'honkai_starrail',
+                'source_cn': '崩坏：星穹铁道',
                 'icon_url': cn_char.get('icon_url', ''),
                 'header_img_url': cn_char.get('header_img_url', '')
             }
@@ -154,7 +153,7 @@ class GenshinWikiAPI:
             合并后的角色列表
         """
         print("=" * 60)
-        print("📚 开始获取原神角色列表...")
+        print("📚 开始获取星铁角色列表...")
         print("=" * 60)
         
         # 获取中文列表
@@ -176,15 +175,14 @@ class GenshinWikiAPI:
 
 def main():
     """主函数"""
-    import os
     
     # 创建 API 客户端
-    api = GenshinWikiAPI()
+    api = HonkaiStarRailWikiAPI()
     
     # 获取脚本所在目录
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    # 项目根目录：向上两级到 characters-tag-preview/
-    project_root = os.path.normpath(os.path.join(script_dir, '..', '..'))
+    # 项目根目录：向上一级到 characters-tag-preview/
+    project_root = os.path.normpath(os.path.join(script_dir, '..'))
     # output 文件夹在项目根目录下
     output_dir = os.path.join(project_root, 'output')
     
@@ -192,7 +190,7 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     
     print("=" * 60)
-    print("📚 开始获取原神角色列表...")
+    print("📚 开始获取星铁角色列表...")
     print("=" * 60)
     
     # 获取中文列表
@@ -212,7 +210,7 @@ def main():
     # 保存合并数据到 output 文件夹
     print("\n💾 保存数据...")
     
-    output_file = os.path.join(output_dir, 'genshin_characters-en-cn.json')
+    output_file = os.path.join(output_dir, 'honkai_starrail_characters-en-cn.json')
     with open(output_file, 'w', encoding='utf-8') as f:
         json.dump(merged_list, f, ensure_ascii=False, indent=2)
     print(f"✅ 已保存: {os.path.basename(output_file)} ({len(merged_list)} 个角色)")
@@ -225,7 +223,8 @@ def main():
     for i, char in enumerate(merged_list[:5], 1):
         print(f"\n【{i}】 {char['name_cn']} ({char['name_en']})")
         print(f"  ID: {char['entry_page_id']}")
-        print(f"  头像: {char['icon_url'][:60]}...")
+        if char.get('icon_url'):
+            print(f"  头像: {char['icon_url'][:60]}...")
     
     print("\n" + "=" * 60)
     print(f"✨ 完成！数据已保存至: {output_file}")
