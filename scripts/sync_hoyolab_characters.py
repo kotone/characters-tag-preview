@@ -81,17 +81,12 @@ def main():
             # 发现新角色
             new_item = {
                 "tag": tag,
-                "tag_cn": char.get('name_cn', ''),
-                "tag_en": char.get('name_en', ''),
-                "source": char.get('source', 'genshin_impact'),
+                "cn_name": char.get('name_cn', ''),
+                "en_name": char.get('name_en', ''),
+                "source": char.get('source', ''),
                 "source_cn": char.get('source_cn', '原神'),
+                "source_en": char.get('source', 'genshin_impact'),
                 "image_url": char.get('icon_url', ''),
-                "character_id": char.get('entry_page_id', ''),
-                # 添加默认空字段以保持格式一致
-                "desc": "",
-                "desc_cn": "",
-                "chant": "",
-                "chant_cn": ""
             }
             main_data.append(new_item)
             existing_tags.add(tag.lower())
@@ -114,17 +109,12 @@ def main():
             # 发现新角色
             new_item = {
                 "tag": tag,
-                "tag_cn": char.get('name_cn', ''),
-                "tag_en": char.get('name_en', ''),
-                "source": char.get('source', 'honkai_starrail'),
+                "cn_name": char.get('name_cn', ''),
+                "en_name": char.get('name_en', ''),
+                "source": char.get('source', ''),
                 "source_cn": char.get('source_cn', '崩坏：星穹铁道'),
+                "source_en": char.get('source', 'honkai_starrail'),
                 "image_url": char.get('icon_url', ''),
-                "character_id": char.get('entry_page_id', ''),
-                # 添加默认空字段
-                "desc": "",
-                "desc_cn": "",
-                "chant": "",
-                "chant_cn": ""
             }
             main_data.append(new_item)
             existing_tags.add(tag.lower())
