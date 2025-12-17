@@ -134,7 +134,7 @@ class HonkaiStarRailWikiAPI:
                 'entry_page_id': entry_id,
                 'name_cn': cn_char.get('name', ''),
                 'name_en': name_en,
-                'tag': f"{tag_name}_(honkai_impact)" if tag_name else '',
+                'tag': f"{tag_name}_(honkai:_star_rail)" if tag_name else '',
                 'source': 'honkai_starrail',
                 'source_cn': '崩坏：星穹铁道',
                 'icon_url': cn_char.get('icon_url', ''),
