@@ -10,16 +10,16 @@
 
 ### 手动安装
 
-1. 将整个 `comfyui_node` 文件夹复制到 ComfyUI 的自定义节点目录：
+1. 将整个 `comfyui-character-tag-selector` 文件夹复制到 ComfyUI 的自定义节点目录：
    ```
-   ComfyUI/custom_nodes/character-tag-selector/
+   ComfyUI/custom_nodes/
    ```
 
 2. 确保目录结构如下：
    ```
    ComfyUI/
    └── custom_nodes/
-       └── character-tag-selector/
+       └── comfyui-character-tag-selector/
            ├── __init__.py
            ├── character_tag_selector.py
            └── README.md
